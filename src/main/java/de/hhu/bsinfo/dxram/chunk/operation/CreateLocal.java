@@ -1,9 +1,9 @@
 package de.hhu.bsinfo.dxram.chunk.operation;
 
-import java.util.Arrays;
-
 import de.hhu.bsinfo.dxmem.data.AbstractChunk;
 import de.hhu.bsinfo.dxmem.data.ChunkID;
+import de.hhu.bsinfo.dxmem.data.ChunkLockOperation;
+import de.hhu.bsinfo.dxmem.data.ChunkState;
 import de.hhu.bsinfo.dxram.backup.BackupComponent;
 import de.hhu.bsinfo.dxram.boot.BootComponent;
 import de.hhu.bsinfo.dxram.chunk.ChunkComponent;
@@ -16,6 +16,8 @@ import de.hhu.bsinfo.dxutils.stats.StatisticsManager;
 import de.hhu.bsinfo.dxutils.stats.ThroughputPool;
 import de.hhu.bsinfo.dxutils.stats.Value;
 import de.hhu.bsinfo.dxutils.stats.ValuePool;
+
+import java.util.Arrays;
 
 /**
  * Create chunks (local only and optimized)
@@ -47,45 +49,33 @@ public class CreateLocal extends Operation {
     /**
      * Constructor
      *
-     * @param p_parentService
-     *         Instance of parent service this operation belongs to
-     * @param p_boot
-     *         Instance of BootComponent
-     * @param p_backup
-     *         Instance of BackupComponent
-     * @param p_chunk
-     *         Instance of ChunkComponent
-     * @param p_network
-     *         Instance of NetworkComponent
-     * @param p_lookup
-     *         Instance of LookupComponent
-     * @param p_nameservice
-     *         Instance of NameserviceComponent
+     * @param p_parentService Instance of parent service this operation belongs to
+     * @param p_boot          Instance of BootComponent
+     * @param p_backup        Instance of BackupComponent
+     * @param p_chunk         Instance of ChunkComponent
+     * @param p_network       Instance of NetworkComponent
+     * @param p_lookup        Instance of LookupComponent
+     * @param p_nameservice   Instance of NameserviceComponent
      */
     public CreateLocal(final Class<? extends Service> p_parentService, final BootComponent p_boot,
-            final BackupComponent p_backup, final ChunkComponent p_chunk, final NetworkComponent p_network,
-            final LookupComponent p_lookup, final NameserviceComponent p_nameservice) {
+                       final BackupComponent p_backup, final ChunkComponent p_chunk, final NetworkComponent p_network,
+                       final LookupComponent p_lookup, final NameserviceComponent p_nameservice) {
         super(p_parentService, p_boot, p_backup, p_chunk, p_network, p_lookup, p_nameservice);
     }
 
     /**
      * Create one or multiple chunks of the same size
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_offset
-     *         Offset in array to start putting the CIDs to
-     * @param p_count
-     *         Number of chunks to allocate
-     * @param p_size
-     *         Size of a single chunk
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
+     * @param p_cids        Pre-allocated array for the CIDs returned
+     * @param p_offset      Offset in array to start putting the CIDs to
+     * @param p_count       Number of chunks to allocate
+     * @param p_size        Size of a single chunk
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_offset, final int p_count, final int p_size,
-            final boolean p_consecutive) {
+                      final boolean p_consecutive) {
         m_logger.trace("create[cids.length %d, offset %d, size %d, count %d, consecutive %b]", p_cids.length, p_offset,
                 p_size, p_count, p_consecutive);
 
@@ -118,14 +108,10 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks of the same size
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_offset
-     *         Offset in array to start putting the CIDs to
-     * @param p_count
-     *         Number of chunks to allocate
-     * @param p_size
-     *         Size of a single chunk
+     * @param p_cids   Pre-allocated array for the CIDs returned
+     * @param p_offset Offset in array to start putting the CIDs to
+     * @param p_count  Number of chunks to allocate
+     * @param p_size   Size of a single chunk
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_offset, final int p_count, final int p_size) {
@@ -135,15 +121,11 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks of the same size
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_count
-     *         Number of chunks to allocate
-     * @param p_size
-     *         Size of a single chunk
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
+     * @param p_cids        Pre-allocated array for the CIDs returned
+     * @param p_count       Number of chunks to allocate
+     * @param p_size        Size of a single chunk
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_count, final int p_size, final boolean p_consecutive) {
@@ -153,12 +135,9 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks of the same size
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_count
-     *         Number of chunks to allocate
-     * @param p_size
-     *         Size of a single chunk
+     * @param p_cids  Pre-allocated array for the CIDs returned
+     * @param p_count Number of chunks to allocate
+     * @param p_size  Size of a single chunk
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_count, final int p_size) {
@@ -168,16 +147,12 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks with different sizes
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_offset
-     *         Offset in array to start putting the CIDs to
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
-     * @param p_sizes
-     *         One or multiple (different) sizes. The amount of sizes declared here denotes the number of
-     *         chunks to create
+     * @param p_cids        Pre-allocated array for the CIDs returned
+     * @param p_offset      Offset in array to start putting the CIDs to
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
+     * @param p_sizes       One or multiple (different) sizes. The amount of sizes declared here denotes the number of
+     *                      chunks to create
      * @return Number of chunks successfully created
      */
     public int createSizes(final long[] p_cids, final int p_offset, final boolean p_consecutive, final int... p_sizes) {
@@ -213,13 +188,10 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks with different sizes
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_offset
-     *         Offset in array to start putting the CIDs to
-     * @param p_sizes
-     *         One or multiple (different) sizes. The amount of sizes declared here denotes the number of
-     *         chunks to create
+     * @param p_cids   Pre-allocated array for the CIDs returned
+     * @param p_offset Offset in array to start putting the CIDs to
+     * @param p_sizes  One or multiple (different) sizes. The amount of sizes declared here denotes the number of
+     *                 chunks to create
      * @return Number of chunks successfully created
      */
     public int createSizes(final long[] p_cids, final int p_offset, int... p_sizes) {
@@ -229,14 +201,11 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks with different sizes
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
-     * @param p_sizes
-     *         One or multiple (different) sizes. The amount of sizes declared here denotes the number of
-     *         chunks to create
+     * @param p_cids        Pre-allocated array for the CIDs returned
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
+     * @param p_sizes       One or multiple (different) sizes. The amount of sizes declared here denotes the number of
+     *                      chunks to create
      * @return Number of chunks successfully created
      */
     public int createSizes(final long[] p_cids, final boolean p_consecutive, int... p_sizes) {
@@ -246,11 +215,9 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks with different sizes
      *
-     * @param p_cids
-     *         Pre-allocated array for the CIDs returned
-     * @param p_sizes
-     *         One or multiple (different) sizes. The amount of sizes declared here denotes the number of
-     *         chunks to create
+     * @param p_cids  Pre-allocated array for the CIDs returned
+     * @param p_sizes One or multiple (different) sizes. The amount of sizes declared here denotes the number of
+     *                chunks to create
      * @return Number of chunks successfully created
      */
     public int createSizes(final long[] p_cids, int... p_sizes) {
@@ -260,20 +227,16 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks using Chunk instances (with different sizes)
      *
-     * @param p_offset
-     *         Offset in array to start putting the CIDs to
-     * @param p_count
-     *         Number of chunks to create (might be less than objects provided)
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
-     * @param p_chunks
-     *         Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
-     *         and the state is set to OK.
+     * @param p_offset      Offset in array to start putting the CIDs to
+     * @param p_count       Number of chunks to create (might be less than objects provided)
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
+     * @param p_chunks      Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
+     *                      and the state is set to OK.
      * @return Number of chunks successfully created. If less than expected, check the chunk objects states for errors.
      */
     public int create(final int p_offset, final int p_count, final boolean p_consecutive,
-            final AbstractChunk... p_chunks) {
+                      final AbstractChunk... p_chunks) {
         m_logger.trace("create[offset %d, count %d, consecutive %b, chunks with sizes (%d): %s]", p_offset, p_count,
                 p_consecutive, p_chunks.length, AbstractChunk.toSizeListString(p_chunks));
 
@@ -297,15 +260,35 @@ public class CreateLocal extends Operation {
         return created;
     }
 
+    public boolean create(final AbstractChunk p_chunk, final long p_lid) {
+        boolean ret = true;
+        SOP_CREATE_DS.start();
+
+        m_backup.blockCreation();
+
+        m_chunk.getMemory().create().create(p_chunk, p_lid, ChunkLockOperation.NONE);
+
+        // Initialize a new backup range every e.g. 256 MB and inform superpeer
+        m_backup.registerChunk(p_chunk);
+
+        m_backup.unblockCreation();
+
+        if (p_chunk.getState() != ChunkState.OK) {
+            SOP_CREATE_DS_ERROR.add(1);
+            ret = false;
+        }
+        SOP_CREATE_DS.stop();
+
+        return ret;
+    }
+
     /**
      * Create one or multiple chunks using Chunk instances (with different sizes)
      *
-     * @param p_consecutive
-     *         True to enforce consecutive CIDs for all chunks to allocate, false might assign non
-     *         consecutive CIDs if available.
-     * @param p_chunks
-     *         Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
-     *         and the state is set to OK.
+     * @param p_consecutive True to enforce consecutive CIDs for all chunks to allocate, false might assign non
+     *                      consecutive CIDs if available.
+     * @param p_chunks      Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
+     *                      and the state is set to OK.
      * @return Number of chunks successfully created. If less than expected, check the chunk objects states for errors.
      */
     public int create(final boolean p_consecutive, final AbstractChunk... p_chunks) {
@@ -315,9 +298,8 @@ public class CreateLocal extends Operation {
     /**
      * Create one or multiple chunks using Chunk instances (with different sizes)
      *
-     * @param p_chunks
-     *         Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
-     *         and the state is set to OK.
+     * @param p_chunks Instances of chunk objects to allocate storage for. On success, the CID is assigned to the object
+     *                 and the state is set to OK.
      * @return Number of chunks successfully created. If less than expected, check the chunk objects states for errors.
      */
     public int create(final AbstractChunk... p_chunks) {

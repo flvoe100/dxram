@@ -37,9 +37,7 @@ public class JobServiceRemote2Test {
         }
 
         Assert.assertNotEquals(NodeID.INVALID_ID, otherPeer);
-
         JobRemoteSerializeTest job = new JobRemoteSerializeTest();
-
         long jobId = jobService.pushJobRemote(job, otherPeer);
         Assert.assertNotEquals(JobID.INVALID_ID, jobId);
 
