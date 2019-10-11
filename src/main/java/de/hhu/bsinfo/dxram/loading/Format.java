@@ -1,9 +1,13 @@
 package de.hhu.bsinfo.dxram.loading;
 
 
+import de.hhu.bsinfo.dxmem.data.AbstractChunk;
+import de.hhu.bsinfo.dxutils.serialization.Exporter;
+import de.hhu.bsinfo.dxutils.serialization.Importer;
+
 import java.nio.file.Path;
 
-public abstract class Format {
+public abstract class Format extends AbstractChunk {
     private boolean hasVertexFile;
     private boolean hasPropertiesFile;
     private Class propertiesLoader;
@@ -16,6 +20,7 @@ public abstract class Format {
         this.propertiesLoader = propertiesLoader;
         this.verticesJobLoader = vertexLoader;
         this.edgeLoader = edgeLoader;
+
     }
 
     public boolean hasVertexFile() {
@@ -64,4 +69,18 @@ public abstract class Format {
     abstract public Path getVertexFilePath();
 
     abstract public Path getEdgeFilePath();
+
+    @Override
+    public void importObject(Importer p_importer) {
+    }
+
+    @Override
+    public void exportObject(Exporter p_exporter) {
+
+    }
+
+    @Override
+    public int sizeofObject() {
+        return 0;
+    }
 }

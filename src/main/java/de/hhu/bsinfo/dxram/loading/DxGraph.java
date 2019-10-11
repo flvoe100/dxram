@@ -1,7 +1,10 @@
 package de.hhu.bsinfo.dxram.loading;
 
-import de.hhu.bsinfo.dxram.job.JobService;
+import de.hhu.bsinfo.dxram.engine.ServiceProvider;
+
 import de.hhu.bsinfo.dxram.ms.MasterSlaveComputeService;
+import de.hhu.bsinfo.dxram.ms.TaskScriptState;
+import de.hhu.bsinfo.dxram.ms.script.TaskScript;
 
 public class DxGraph {
 
@@ -11,18 +14,17 @@ public class DxGraph {
     private boolean m_fileForEveryNode;
 
     private short m_masterNodeID;
-    private JobService m_jobService;
+    private MasterSlaveComputeService m_masterSlaveService;
 
     private Graph m_graph;
 
-    public DxGraph(String datasetDirectoryPath, Format p_datasetFormat, GraphLoadingMetaData p_metaData, boolean p_fileForEveryNode) {
+    public DxGraph(ServiceProvider p_context, String datasetDirectoryPath, Format p_datasetFormat, GraphLoadingMetaData p_metaData, boolean p_fileForEveryNode) {
         this.m_datasetDirectoryPath = datasetDirectoryPath;
         this.m_datasetFormat = p_datasetFormat;
         this.m_metaData = p_metaData;
         this.m_fileForEveryNode = p_fileForEveryNode;
         this.m_graph = new Graph();
-        MasterSlaveComputeService a;
-
+        this.m_masterSlaveService = p_context.getService(MasterSlaveComputeService.class);
     }
 
     public void loadGraph() {
@@ -39,19 +41,20 @@ public class DxGraph {
     }
 
     private void loadVertices() {
-        VerticesLoadingJob job;
-        for (short nodeID : m_metaData.getPeers()) {
-            if(m_fileForEveryNode) {
+        System.out.println("m_graphV = " + m_graph.getNumberOfVertices());
+
+        VerticesLoadingTask verticesLoadingTask = new VerticesLoadingTask(this.m_datasetFormat.getVertexFilePath().toString(), m_datasetFormat.getVertexLoader().getClass().getName(), m_graph);
+        TaskScript taskScript = new TaskScript(verticesLoadingTask);
+        TaskScriptState state =m_masterSlaveService.submitTaskScript(taskScript);
+
+        while (!state.hasTaskCompleted()) {
+            try {
+                Thread.sleep(100);
+            } catch (final InterruptedException ignore) {
 
             }
-            job = new VerticesLoadingJob(m_datasetFormat.getVertexFilePath(), m_datasetFormat.getVertexLoader(),m_graph);
-            if (nodeID == m_masterNodeID) {
-                m_jobService.pushJob(job);
-            }
-            m_jobService.pushJobRemote(job, nodeID);
         }
-        if (!m_jobService.waitForAllJobsToFinish()) {
-            //error!
-        }
+
+
     }
 }
