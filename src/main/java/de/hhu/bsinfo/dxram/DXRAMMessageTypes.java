@@ -37,6 +37,8 @@ public final class DXRAMMessageTypes {
     public static final byte MONITORING_MESSAGES_TYPE = 12;
     public static final byte APPLICATION_MESSAGE_TYPE = 13;
     public static final byte FUNCTION_MESSAGE_TYPE = 14;
+    public static final byte GRAPH_LOADING_MESSAGE_TYPE = 15;
+
 
     /**
      * Static class

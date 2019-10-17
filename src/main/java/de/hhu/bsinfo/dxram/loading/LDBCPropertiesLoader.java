@@ -8,7 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-public class LDBCPropertiesLoader implements FileLoader {
+public class LDBCPropertiesLoader extends FileLoader {
 
     private final String PREFIX_NUM_OF_VERTICES = ".meta.vertices = ";
     private final String PREFIX_NUM_OF_EDGES = ".meta.edges = ";
@@ -37,4 +37,16 @@ public class LDBCPropertiesLoader implements FileLoader {
             e.printStackTrace();
         }
     }
+
+    @Override
+    VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+        return null;
+    }
+
+    @Override
+    void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
+
+    }
+
+
 }

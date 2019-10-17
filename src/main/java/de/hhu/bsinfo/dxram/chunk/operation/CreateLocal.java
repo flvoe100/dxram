@@ -74,7 +74,7 @@ public class CreateLocal extends Operation {
      *                      consecutive CIDs if available.
      * @return Number of chunks successfully created
      */
-    public int create(final long[] p_cids, final int p_offset, final int p_count, final int p_size,
+    public int create(final long[] p_cids, final int p_offset, final int p_count, final int p_size, final boolean p_customLID,
                       final boolean p_consecutive) {
         m_logger.trace("create[cids.length %d, offset %d, size %d, count %d, consecutive %b]", p_cids.length, p_offset,
                 p_size, p_count, p_consecutive);
@@ -83,7 +83,38 @@ public class CreateLocal extends Operation {
 
         m_backup.blockCreation();
 
-        int created = m_chunk.getMemory().create().create(p_cids, p_offset, p_count, p_size, p_consecutive);
+        int created = m_chunk.getMemory().create().create(p_cids, p_offset, p_count, p_size, p_customLID, p_consecutive);
+
+        if (created < p_count) {
+            for (int i = created; i < p_count; i++) {
+                p_cids[i] = ChunkID.INVALID_ID;
+            }
+        }
+
+        // Initialize a new backup range every e.g. 256 MB and inform superpeer
+        m_backup.registerChunks(p_cids, p_offset, created, p_size);
+
+        m_backup.unblockCreation();
+
+        if (created < p_count) {
+            SOP_CREATE_ERROR.add(p_count - created);
+        }
+
+        SOP_CREATE.stop(created);
+
+        return created;
+    }
+
+    public int createCustom(final long[] p_cids, final int p_offset, final int p_count, final int p_size,
+                            final boolean p_customLID) {
+        m_logger.trace("create[cids.length %d, offset %d, size %d, count %d, custom LIDs %b]", p_cids.length, p_offset,
+                p_size, p_count, p_customLID);
+
+        SOP_CREATE.start();
+
+        m_backup.blockCreation();
+
+        int created = m_chunk.getMemory().create().create(p_cids, p_offset, p_count, p_size, p_customLID);
 
         if (created < p_count) {
             for (int i = created; i < p_count; i++) {
@@ -115,7 +146,7 @@ public class CreateLocal extends Operation {
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_offset, final int p_count, final int p_size) {
-        return create(p_cids, p_offset, p_count, p_size, false);
+        return create(p_cids, p_offset, p_count, p_size, false, false);
     }
 
     /**
@@ -129,7 +160,11 @@ public class CreateLocal extends Operation {
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_count, final int p_size, final boolean p_consecutive) {
-        return create(p_cids, 0, p_count, p_size, p_consecutive);
+        return create(p_cids, 0, p_count, p_size, false, p_consecutive);
+    }
+
+    public int create(final long[] p_cids, final int p_count, final int p_size, final boolean p_customLID, final boolean p_consecutive) {
+        return create(p_cids, 0, p_count, p_size, p_customLID, p_consecutive);
     }
 
     /**
@@ -141,7 +176,7 @@ public class CreateLocal extends Operation {
      * @return Number of chunks successfully created
      */
     public int create(final long[] p_cids, final int p_count, final int p_size) {
-        return create(p_cids, 0, p_count, p_size, false);
+        return create(p_cids, 0, p_count, p_size, false, false);
     }
 
     /**

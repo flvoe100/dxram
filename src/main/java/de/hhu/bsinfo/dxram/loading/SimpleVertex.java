@@ -10,9 +10,16 @@ public class SimpleVertex extends Vertex {
         super();
     }
 
+    public SimpleVertex(long p_chunkID, long extID) {
+        super(p_chunkID);
+        this.extID = extID;
+    }
+
     public SimpleVertex(long extID) {
         this.extID = extID;
     }
+
+
 
     public long getExtID() {
         return extID;
