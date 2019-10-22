@@ -20,12 +20,12 @@ public class LDBCVertexLoader extends FileLoader {
     }
 
     @Override
-    void readFile(Path p_filePath, Graph p_graph) {
+    public void readFile(Path p_filePath, Graph p_graph) {
 
     }
 
     @Override
-    VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+    public VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
         //TODO: Improving this -> implement own parallel implementation
         long min = Long.MAX_VALUE;
         long max = Long.MIN_VALUE;
@@ -51,7 +51,7 @@ public class LDBCVertexLoader extends FileLoader {
     }
 
     @Override
-    void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
+    public void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
 
     }
 }

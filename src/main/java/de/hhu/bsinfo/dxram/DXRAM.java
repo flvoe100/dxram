@@ -352,7 +352,7 @@ public final class DXRAM implements ServiceProvider {
         BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
         String banner = reader.lines().collect(Collectors.joining(System.lineSeparator()));
 
-        System.out.print("\n");
+         System.out.print("\n");
         System.out.printf(banner, BuildConfig.DXRAM_VERSION, BuildConfig.BUILD_DATE, BuildConfig.BUILD_TYPE,
                 BuildConfig.BUILD_USER, BuildConfig.GIT_COMMIT);
         System.out.print("\n\n");

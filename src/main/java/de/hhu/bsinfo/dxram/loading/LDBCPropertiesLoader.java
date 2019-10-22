@@ -24,7 +24,7 @@ public class LDBCPropertiesLoader extends FileLoader {
                     .filter(line -> line.contains(PREFIX_NUM_OF_VERTICES) || line.contains(PREFIX_NUM_OF_EDGES) || line.contains(PREFIX_IS_DIRECTED))
                     .forEach(relevantLines -> {
                         if (relevantLines.contains(PREFIX_NUM_OF_VERTICES)) {
-                            p_graph.setNumberOfVertices(Integer.parseInt(relevantLines.split( PREFIX_NUM_OF_VERTICES)[1]));
+                            p_graph.setNumberOfVertices(Integer.parseInt(relevantLines.split(PREFIX_NUM_OF_VERTICES)[1]));
                         }
                         if (relevantLines.contains(PREFIX_NUM_OF_EDGES)) {
                             p_graph.setNumberOfEdges(Integer.parseInt(relevantLines.split(PREFIX_NUM_OF_EDGES)[1]));
@@ -39,12 +39,12 @@ public class LDBCPropertiesLoader extends FileLoader {
     }
 
     @Override
-    VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+    public VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
         return null;
     }
 
     @Override
-    void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
+    public void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
 
     }
 

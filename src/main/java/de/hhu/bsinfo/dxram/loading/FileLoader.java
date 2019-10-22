@@ -7,9 +7,9 @@ import java.nio.file.Path;
 
 public abstract class FileLoader {
 
-    ChunkLocalService m_chunkLocalService;
-    ChunkService m_chunkService;
-    short m_nodeID;
+    public ChunkLocalService m_chunkLocalService;
+    public ChunkService m_chunkService;
+    public short m_nodeID;
 
 
     public FileLoader() {
@@ -22,9 +22,9 @@ public abstract class FileLoader {
     }
 
 
-    abstract void readFile(Path p_filePath, Graph p_graph);
+    public abstract void readFile(Path p_filePath, Graph p_graph);
 
-   abstract VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId);
+   public abstract VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId);
 
-   abstract void readFile(Path p_filePath, GraphLoadingMetaData p_metaData);
+   public abstract void readFile(Path p_filePath, GraphLoadingMetaData p_metaData);
 }

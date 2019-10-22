@@ -19,7 +19,7 @@ public class LDBCEdgeLoader extends FileLoader {
     }
 
     @Override
-    void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
+    public void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
         try {
             long start = System.nanoTime();
             Files.lines(p_filePath)
@@ -52,7 +52,7 @@ public class LDBCEdgeLoader extends FileLoader {
     }
 
     @Override
-    VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+    public VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
         return null;
     }
 

@@ -13,7 +13,9 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.*;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class LDBCVertexLoader2 extends FileLoader {
 
@@ -33,12 +35,12 @@ public class LDBCVertexLoader2 extends FileLoader {
     }
 
     @Override
-    void readFile(Path p_filePath, Graph p_graph) {
+    public void readFile(Path p_filePath, Graph p_graph) {
 
     }
 
     @Override
-    VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+    public VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
         long min = Integer.MAX_VALUE;
         long max = Integer.MIN_VALUE;
         try (final BufferedReader br = new BufferedReader(
@@ -74,7 +76,7 @@ public class LDBCVertexLoader2 extends FileLoader {
     }
 
     @Override
-    void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
+    public void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
 
     }
 }
