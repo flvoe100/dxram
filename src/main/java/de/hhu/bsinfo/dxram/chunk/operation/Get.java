@@ -200,6 +200,7 @@ public class Get extends Operation implements MessageReceiver {
 
                                 result = p_chunk.isStateOk();
 
+
                                 if (!result) {
                                     m_lookup.invalidateRange(p_chunk.getID());
                                 }

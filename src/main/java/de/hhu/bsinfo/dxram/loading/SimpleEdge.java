@@ -8,9 +8,14 @@ public class SimpleEdge extends Edge {
     public SimpleEdge() {
     }
 
-    public SimpleEdge(long p_sourceID, long p_sinkID) {
-        super(p_sourceID, p_sinkID);
+    public SimpleEdge(long p_sinkID) {
+        super(p_sinkID);
     }
+
+    public SimpleEdge(long p_chunkID, long m_sinkID) {
+        super(p_chunkID, m_sinkID);
+    }
+
 
     @Override
     public void importObject(Importer p_importer) {

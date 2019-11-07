@@ -158,7 +158,7 @@ public class ChunkServiceLocalCreateTest {
         ChunkLocalService chunkLocalService = p_instance.getService(ChunkLocalService.class);
 
         long[] cids = new long[p_count];
-        int created = chunkLocalService.createLocal().create(cids, 0, p_count, p_size, p_consecutive);
+        int created = chunkLocalService.createLocal().create(cids, 0, p_count, p_size, false, p_consecutive);
 
         Assert.assertEquals(p_count, created);
 

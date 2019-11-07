@@ -24,13 +24,17 @@ public class EdgesLoadingTask implements Task {
     @Expose
     private GraphLoadingMetaData m_metaData;
 
+    @Expose
+    private Graph m_graph;
+
     public EdgesLoadingTask() {
     }
 
-    public EdgesLoadingTask(String p_edgeFilePath, String p_edgeLoaderName, GraphLoadingMetaData p_metaData) {
+    public EdgesLoadingTask(String p_edgeFilePath, String p_edgeLoaderName, GraphLoadingMetaData p_metaData, Graph p_graph) {
         this.m_edgeFilePath = p_edgeFilePath;
         this.m_edgeLoaderName = p_edgeLoaderName;
         this.m_metaData = p_metaData;
+        this.m_graph = p_graph;
     }
 
 
@@ -45,9 +49,9 @@ public class EdgesLoadingTask implements Task {
         short nodeID = p_bootService.getNodeID();
 
         if (m_edgeLoaderName.equals(LDBCEdgeLoader.class.getName())) {
-            loader = new LDBCEdgeLoader(p_chunkLocalService, p_chunkService, nodeID);
+            loader = new LDBCEdgeLoader(m_graph.getNumberOfEdgesOfSlave(nodeID), m_metaData, p_chunkLocalService, p_chunkService, nodeID);
         }
-        loader.readFile(Paths.get(m_edgeFilePath), m_metaData);
+        loader.readFile(Paths.get(m_edgeFilePath), m_graph);
 
 
         return 0;
@@ -63,6 +67,7 @@ public class EdgesLoadingTask implements Task {
         p_exporter.writeString(m_edgeFilePath);
         p_exporter.writeString(m_edgeLoaderName);
         p_exporter.exportObject(m_metaData);
+        p_exporter.exportObject(m_graph);
     }
 
     @Override
@@ -73,10 +78,15 @@ public class EdgesLoadingTask implements Task {
             m_metaData = new GraphLoadingMetaData();
         }
         m_metaData.importObject(p_importer);
+        if (m_graph == null) {
+            m_graph = new Graph();
+        }
+        m_graph.importObject(p_importer);
     }
 
     @Override
     public int sizeofObject() {
-        return ObjectSizeUtil.sizeofString(m_edgeFilePath) + ObjectSizeUtil.sizeofString(m_edgeLoaderName) + m_metaData.sizeofObject();
+        return ObjectSizeUtil.sizeofString(m_edgeFilePath) + ObjectSizeUtil.sizeofString(m_edgeLoaderName)
+                + m_metaData.sizeofObject() + m_graph.sizeofObject();
     }
 }

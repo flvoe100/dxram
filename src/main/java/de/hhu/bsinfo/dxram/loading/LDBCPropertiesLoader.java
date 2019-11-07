@@ -24,10 +24,20 @@ public class LDBCPropertiesLoader extends FileLoader {
                     .filter(line -> line.contains(PREFIX_NUM_OF_VERTICES) || line.contains(PREFIX_NUM_OF_EDGES) || line.contains(PREFIX_IS_DIRECTED))
                     .forEach(relevantLines -> {
                         if (relevantLines.contains(PREFIX_NUM_OF_VERTICES)) {
-                            p_graph.setNumberOfVertices(Integer.parseInt(relevantLines.split(PREFIX_NUM_OF_VERTICES)[1]));
+                            String[] split = relevantLines.split(PREFIX_NUM_OF_VERTICES)[1].split("\\s");
+                            int[] numberOfVerticesPerSlave = new int[split.length];
+                            for (int i = 0; i < split.length; i++) {
+                                numberOfVerticesPerSlave[i] = Integer.parseInt(split[i]);
+                            }
+                            p_graph.setNumberOfVertices(numberOfVerticesPerSlave);
                         }
                         if (relevantLines.contains(PREFIX_NUM_OF_EDGES)) {
-                            p_graph.setNumberOfEdges(Integer.parseInt(relevantLines.split(PREFIX_NUM_OF_EDGES)[1]));
+                            String[] split = relevantLines.split(PREFIX_NUM_OF_EDGES)[1].split("\\s");
+                            int[] numberOfEdgesPerSlave = new int[split.length];
+                            for (int i = 0; i < split.length; i++) {
+                                numberOfEdgesPerSlave[i] = Integer.parseInt(split[i]);
+                            }
+                            p_graph.setNumberOfEdges(numberOfEdgesPerSlave);
                         }
                         if (relevantLines.contains(PREFIX_IS_DIRECTED)) {
                             p_graph.setIsDirected(Boolean.parseBoolean(relevantLines.split(PREFIX_IS_DIRECTED)[1]));
@@ -39,14 +49,10 @@ public class LDBCPropertiesLoader extends FileLoader {
     }
 
     @Override
-    public VerticesTaskResponse readVerticesFile(Path p_filePath, short p_masterNodeId) {
+    public VerticesTaskResponse readVerticesFile(Path p_filePath, Graph p_graph) {
         return null;
     }
 
-    @Override
-    public void readFile(Path p_filePath, GraphLoadingMetaData p_metaData) {
-
-    }
 
 
 }

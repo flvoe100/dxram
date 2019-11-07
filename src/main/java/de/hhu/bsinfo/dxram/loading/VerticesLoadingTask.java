@@ -44,7 +44,6 @@ public class VerticesLoadingTask implements Task {
     public int execute(TaskContext p_ctx) {
 
         FileLoader loader = null;
-        System.out.println("LOADING");
         ChunkLocalService p_chunkLocalService = p_ctx.getDXRAMServiceAccessor().getService(ChunkLocalService.class);
         ChunkService p_chunkService = p_ctx.getDXRAMServiceAccessor().getService(ChunkService.class);
         BootService p_bootService = p_ctx.getDXRAMServiceAccessor().getService(BootService.class);
@@ -53,9 +52,9 @@ public class VerticesLoadingTask implements Task {
         short nodeID = p_bootService.getNodeID();
 
         if (m_loaderClassName.equals(LDBCVertexLoader.class.getName())) {
-            loader = new LDBCVertexLoader(p_chunkLocalService, p_chunkService, nodeID);
+            loader = new LDBCVertexLoader(m_graph.getNumberOfVerticesOfSlave(nodeID), p_chunkLocalService, p_chunkService, nodeID);
         }
-        VerticesTaskResponse response = loader.readVerticesFile(Paths.get(m_vertexFilePath), m_masterNodeId);
+        VerticesTaskResponse response = loader.readVerticesFile(Paths.get(m_vertexFilePath), m_graph);
         try {
             p_networkService.sendMessage(response);
         } catch (NetworkException e) {

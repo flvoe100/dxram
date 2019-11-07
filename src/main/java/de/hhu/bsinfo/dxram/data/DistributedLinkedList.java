@@ -264,9 +264,8 @@ public final class DistributedLinkedList<T> implements Iterable<T> {
 
         MetaData metaData = new MetaData(chunkId);
         if (!chunkService.get().get(metaData)) {
-            throw new ElementNotFoundException(String.format("Chunk wit id %08X not found", chunkId));
+            throw new ElementNotFoundException(String.format("Chunk with id %08X not found", chunkId));
         }
-
         return new DistributedLinkedList<>(metaData, chunkService, valueSupplier);
     }
 

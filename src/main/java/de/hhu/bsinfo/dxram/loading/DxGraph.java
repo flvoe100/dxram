@@ -14,6 +14,8 @@ import de.hhu.bsinfo.dxram.net.NetworkService;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
+
 public class DxGraph implements MessageReceiver {
 
     private Format m_datasetFormat;
@@ -32,27 +34,36 @@ public class DxGraph implements MessageReceiver {
     public DxGraph(ServiceProvider p_context, Format p_datasetFormat, boolean p_fileForEveryNode) {
         this.m_datasetFormat = p_datasetFormat;
         this.m_fileForEveryNode = p_fileForEveryNode;
-        this.m_graph = new Graph();
         this.m_masterSlaveService = p_context.getService(MasterSlaveComputeService.class);
         this.m_chunkService = p_context.getService(ChunkService.class);
-        this.m_metaData = new GraphLoadingMetaData(m_masterSlaveService.getStatusMaster().getConnectedSlaves());
+        ArrayList<Short> p_slaveIDs = m_masterSlaveService.getStatusMaster().getConnectedSlaves();
+        this.m_metaData = new GraphLoadingMetaData(p_slaveIDs);
         p_context.getService(ChunkLocalService.class).createLocal().create(m_metaData);
         m_chunkService.put().put(m_metaData);
         this.m_masterNodeID = p_context.getService(BootService.class).getNodeID();
+        this.m_graph = new Graph(p_slaveIDs, m_masterNodeID);
+
         NetworkService p_networkService = p_context.getService(NetworkService.class);
         p_networkService.registerMessageType(DXRAMMessageTypes.GRAPH_LOADING_MESSAGE_TYPE, DxGraphMessageTypes.SUBTYPE_VERTICES_LOADING_TASK_RESPONSE, VerticesTaskResponse.class);
         p_networkService.registerReceiver(DXRAMMessageTypes.GRAPH_LOADING_MESSAGE_TYPE, DxGraphMessageTypes.SUBTYPE_VERTICES_LOADING_TASK_RESPONSE, this);
     }
 
     public void loadGraph() {
+        LOGGER.info("Starting to load");
         if (m_datasetFormat.hasPropertiesFile()) {
+            LOGGER.info("Starting to load properties");
             this.loadProperties();
+            LOGGER.info("Finished to load properties");
         }
         if (m_datasetFormat.hasVertexFile()) {
+            LOGGER.info("Starting to load vertices");
             this.loadVertices();
-        }
+            LOGGER.info("Starting to load vertices");
 
+        }
+        LOGGER.info("Starting to load edges");
         this.loadEdges();
+        LOGGER.info("Starting to load edges");
 
         System.out.println("m_metaData = " + m_metaData);
     }
@@ -62,8 +73,9 @@ public class DxGraph implements MessageReceiver {
     }
 
     private void loadVertices() {
-        System.out.println("m_graphV = " + m_graph.getNumberOfVertices());
-        VerticesLoadingTask verticesLoadingTask = new VerticesLoadingTask(this.m_datasetFormat.getVertexFilePath().toString(), m_datasetFormat.getVertexLoader().getClass().getName(), m_masterNodeID, m_graph);
+        long start = System.nanoTime();
+        VerticesLoadingTask verticesLoadingTask = new VerticesLoadingTask(this.m_datasetFormat.getVertexFilePath().toString(),
+                m_datasetFormat.getVertexLoader().getClass().getName(), m_masterNodeID, m_graph);
         TaskScript taskScript = new TaskScript(verticesLoadingTask);
         TaskScriptState state = m_masterSlaveService.submitTaskScript(taskScript);
 
@@ -74,6 +86,8 @@ public class DxGraph implements MessageReceiver {
 
             }
         }
+        long end = System.nanoTime();
+        System.out.println(String.format("Vertice loading time: %d nanosecs", end - start));
         if (!m_chunkService.put().put(m_metaData)) {
             //error
         }
@@ -81,7 +95,9 @@ public class DxGraph implements MessageReceiver {
     }
 
     private void loadEdges() {
-        EdgesLoadingTask edgesLoadingTask = new EdgesLoadingTask(this.m_datasetFormat.getEdgeFilePath().toString(), m_datasetFormat.getEdgeLoader().getClass().getName(), m_metaData);
+        long start = System.nanoTime();
+
+        EdgesLoadingTask edgesLoadingTask = new EdgesLoadingTask(this.m_datasetFormat.getEdgeFilePath().toString(), m_datasetFormat.getEdgeLoader().getClass().getName(), m_metaData, m_graph);
         TaskScript script = new TaskScript(edgesLoadingTask);
         TaskScriptState state = m_masterSlaveService.submitTaskScript(script);
 
@@ -92,24 +108,27 @@ public class DxGraph implements MessageReceiver {
 
             }
         }
+        long end = System.nanoTime();
+        System.out.println(String.format("Edge loading time: %d nanosecs", end - start));
+    }
 
+    public GraphLoadingMetaData getMetaData() {
+        return m_metaData;
     }
 
     private void incomingVerticesLoadingTaskResponse(VerticesTaskResponse p_response) {
-
         m_metaData.changeVertexSpaceOfNode(p_response.getNodeID(), p_response.getStartID(), p_response.getEndID());
     }
 
     @Override
     public void onIncomingMessage(Message p_message) {
-        LOGGER.trace("Message came in!");
+        LOGGER.info("Message came in!");
         if (p_message != null) {
             if (p_message.getType() == DXRAMMessageTypes.GRAPH_LOADING_MESSAGE_TYPE) {
                 switch (p_message.getSubtype()) {
                     case DxGraphMessageTypes.SUBTYPE_VERTICES_LOADING_TASK_RESPONSE:
                         incomingVerticesLoadingTaskResponse((VerticesTaskResponse) p_message);
                         break;
-
                     default:
                         break;
                 }
