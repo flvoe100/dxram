@@ -16,6 +16,8 @@ public class LDBCPropertiesLoader extends FileLoader {
 
     private static final Logger LOGGER = LogManager.getFormatterLogger(LDBCPropertiesLoader.class.getSimpleName());
 
+    public LDBCPropertiesLoader() {
+    }
 
     @Override
     public void readFile(Path p_file, Graph p_graph) {
@@ -25,19 +27,12 @@ public class LDBCPropertiesLoader extends FileLoader {
                     .forEach(relevantLines -> {
                         if (relevantLines.contains(PREFIX_NUM_OF_VERTICES)) {
                             String[] split = relevantLines.split(PREFIX_NUM_OF_VERTICES)[1].split("\\s");
-                            int[] numberOfVerticesPerSlave = new int[split.length];
-                            for (int i = 0; i < split.length; i++) {
-                                numberOfVerticesPerSlave[i] = Integer.parseInt(split[i]);
-                            }
-                            p_graph.setNumberOfVertices(numberOfVerticesPerSlave);
+
+                            p_graph.setNumberOfVertices(Integer.parseInt(split[0]));
                         }
                         if (relevantLines.contains(PREFIX_NUM_OF_EDGES)) {
                             String[] split = relevantLines.split(PREFIX_NUM_OF_EDGES)[1].split("\\s");
-                            int[] numberOfEdgesPerSlave = new int[split.length];
-                            for (int i = 0; i < split.length; i++) {
-                                numberOfEdgesPerSlave[i] = Integer.parseInt(split[i]);
-                            }
-                            p_graph.setNumberOfEdges(numberOfEdgesPerSlave);
+                            p_graph.setNumberOfEdges(Integer.parseInt(split[0]));
                         }
                         if (relevantLines.contains(PREFIX_IS_DIRECTED)) {
                             p_graph.setIsDirected(Boolean.parseBoolean(relevantLines.split(PREFIX_IS_DIRECTED)[1]));
@@ -47,12 +42,5 @@ public class LDBCPropertiesLoader extends FileLoader {
             e.printStackTrace();
         }
     }
-
-    @Override
-    public VerticesTaskResponse readVerticesFile(Path p_filePath, Graph p_graph) {
-        return null;
-    }
-
-
 
 }

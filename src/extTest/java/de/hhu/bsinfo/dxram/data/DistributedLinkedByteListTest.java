@@ -5,8 +5,11 @@ import de.hhu.bsinfo.dxram.DXRAMJunitRunner;
 import de.hhu.bsinfo.dxram.DXRAMTestConfiguration;
 import de.hhu.bsinfo.dxram.TestInstance;
 import de.hhu.bsinfo.dxram.boot.BootService;
+import de.hhu.bsinfo.dxram.chunk.ChunkLocalService;
+import de.hhu.bsinfo.dxram.chunk.ChunkService;
 import de.hhu.bsinfo.dxram.loading.DistributedLinkedByteList;
 import de.hhu.bsinfo.dxram.loading.SimpleEdge;
+import de.hhu.bsinfo.dxram.nameservice.NameserviceService;
 import de.hhu.bsinfo.dxram.util.NetworkHelper;
 import de.hhu.bsinfo.dxram.util.NodeRole;
 import de.hhu.bsinfo.dxutils.NodeID;
@@ -15,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.runner.RunWith;
 
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
 
@@ -37,64 +39,75 @@ public class DistributedLinkedByteListTest {
 
     @TestInstance(runOnNodeIdx = 1)
     public void testDistributedWrite(final DXRAM dxram) {
+
         BootService bootService = dxram.getService(BootService.class);
+        ChunkLocalService chunkLocalService = dxram.getService(ChunkLocalService.class);
+        ChunkService chunkService = dxram.getService(ChunkService.class);
+        NameserviceService nameserviceService = dxram.getService(NameserviceService.class);
         short ownID = bootService.getNodeID();
         short peer = NetworkHelper.findPeer(bootService);
         assertNotEquals(NodeID.INVALID_ID, peer);
 
         // Create a linked list
-        DistributedLinkedByteList<SimpleEdge> list = DistributedLinkedByteList.create(NAMESERVICE_ID, dxram, SimpleEdge::new);
-        SimpleEdge[] edges = new SimpleEdge[3];
-        Random rnd = new Random();
-        for (int i = 0; i < 3; i++) {
+        DistributedLinkedByteList<SimpleEdge> list = DistributedLinkedByteList.create(chunkLocalService, chunkService, SimpleEdge::new);
+        nameserviceService.register(list.getMetaDataID(), NAMESERVICE_ID);
+        SimpleEdge[] edges = new SimpleEdge[2];
+        for (int i = 0; i < 2; i++) {
             int sink = i * 10;
-            System.out.println("Putting edge with sink = " + sink);
             edges[i] = new SimpleEdge(sink);
         }
-        list.add(edges, peer);
-        edges = new SimpleEdge[4];
-        for (int i = 0; i < 4; i++) {
-            int sink = (i + 3) * 10;
-            System.out.println("Putting edge with sink = " + sink);
+        list.add(peer, edges);
+
+        edges = new SimpleEdge[498];
+        for (int i = 0; i < 498; i++) {
+            int sink = i * 10 + 20;
             edges[i] = new SimpleEdge(sink);
         }
-        list.add(edges, peer);
-        /*
-        // Add (append) an element storing the data on a remote peer
-        list.add("Hello", peer);
+        list.add(peer, edges);
+/*
+        edges = new SimpleEdge[15998];
+        for (int i = 0; i < 15998; i++) {
+            int sink = i * 10 + 40;
+            edges[i] = new SimpleEdge(sink);
+        }
+        list.add(peer, edges);
+*/
+        List<SimpleEdge> ret = list.getAll();
+        System.out.println("List size: " +ret.size());
+        for (int i = 0; i < ret.size(); i++) {
+            SimpleEdge e = ret.get(i);
+            assertEquals(e.getDestID(true), i * 10);
+        }
 
-        // Add (append) an element storing the data on this peer
-        list.add("World", bootService.getNodeID());
 
-        // Add an element at a specific index storing the data on a remote peer
-        list.add(1, "Distributed", peer);
-
-         */
     }
 
     @TestInstance(runOnNodeIdx = 2)
     public void testDistributedRead(final DXRAM dxram) {
         DistributedLinkedByteList<SimpleEdge> list = null;
-
         // Wait until first node created the linked list
+        ChunkService chunkService = dxram.getService(ChunkService.class);
+        NameserviceService nameserviceService = dxram.getService(NameserviceService.class);
         while (list == null) {
             try {
-                list = DistributedLinkedByteList.get(NAMESERVICE_ID, dxram, SimpleEdge::new);
+                long metaDataID = nameserviceService.getChunkID(NAMESERVICE_ID, 4000);
+                list = DistributedLinkedByteList.get(metaDataID, chunkService, SimpleEdge::new);
             } catch (ElementNotFoundException ignored) {
             }
         }
-
+        System.out.println("getting List");
         // Wait until first node added two elements to the linked list
-        while (list.size() != 7) {
+
+
+        while (list.size() != 500) {
             LockSupport.parkNanos(PARK_TIME);
+            System.out.println(list.size());
         }
         List<SimpleEdge> ret = list.getAll();
-        assertEquals(ret.size(), 7);
+        System.out.println(ret.size());
         for (int i = 0; i < ret.size(); i++) {
             SimpleEdge e = ret.get(i);
-            System.out.println(e.getSinkID());
-            LOGGER.info(String.format("Edge with sink = %d", e.getSinkID()));
-            assertEquals(e.getSinkID(), i * 10);
+            assertEquals(e.getDestID(true), i * 10);
         }
 
 

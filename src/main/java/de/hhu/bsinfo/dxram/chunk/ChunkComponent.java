@@ -19,11 +19,10 @@ package de.hhu.bsinfo.dxram.chunk;
 import de.hhu.bsinfo.dxmem.DXMem;
 import de.hhu.bsinfo.dxram.boot.BootComponent;
 import de.hhu.bsinfo.dxram.engine.Component;
-import de.hhu.bsinfo.dxutils.dependency.Dependency;
-import de.hhu.bsinfo.dxram.engine.Module;
-import de.hhu.bsinfo.dxram.engine.ComponentProvider;
 import de.hhu.bsinfo.dxram.engine.DXRAMConfig;
 import de.hhu.bsinfo.dxram.engine.DXRAMJNIManager;
+import de.hhu.bsinfo.dxram.engine.Module;
+import de.hhu.bsinfo.dxutils.dependency.Dependency;
 
 /**
  * Component class for local chunk handling (access to local key-value memory)
@@ -68,7 +67,7 @@ public class ChunkComponent extends Component<ChunkComponentConfig> {
             LOGGER.info("Allocating %d MB of native memory",
                     chunkConfig.getKeyValueStoreSize().getMB());
 
-            m_memory = new DXMem(m_boot.getNodeId(), chunkConfig.getKeyValueStoreSize().getBytes(),
+            m_memory = new DXMem(m_boot.getNodeId(), chunkConfig.getKeyValueStoreSize().getBytes(), chunkConfig.getSpareLIDStoreSize(),
                     chunkConfig.isChunkLockDisabled());
         } else {
             LOGGER.info("Chunk storage disabled");

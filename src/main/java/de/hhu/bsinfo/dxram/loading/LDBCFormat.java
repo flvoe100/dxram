@@ -1,5 +1,6 @@
 package de.hhu.bsinfo.dxram.loading;
 
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -14,13 +15,13 @@ public class LDBCFormat extends Format {
 
 
     public LDBCFormat(String p_directoryPath, String p_datasetName) {
-        super(true, true, LDBCPropertiesLoader.class, LDBCVertexLoader.class, LDBCEdgeLoader.class);
+        super(true, true, LDBCPropertiesLoader.class);
         this.m_directoryPath = p_directoryPath;
         this.m_datasetName = p_datasetName;
     }
 
     public LDBCFormat(boolean hasVertexFile, boolean hasPropertiesFile, String m_directoryPath, String m_datasetName) {
-        super(hasVertexFile, hasPropertiesFile, LDBCPropertiesLoader.class, LDBCVertexLoader.class, LDBCEdgeLoader.class);
+        super(hasVertexFile, hasPropertiesFile, LDBCPropertiesLoader.class);
         this.m_directoryPath = m_directoryPath;
         this.m_datasetName = m_datasetName;
     }

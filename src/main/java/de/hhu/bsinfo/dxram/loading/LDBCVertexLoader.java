@@ -1,6 +1,5 @@
 package de.hhu.bsinfo.dxram.loading;
 
-import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxram.chunk.ChunkLocalService;
 import de.hhu.bsinfo.dxram.chunk.ChunkService;
 
@@ -12,33 +11,35 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingDeque;
 
 public class LDBCVertexLoader extends FileLoader {
 
-    BlockingDeque<Long> buffer;
-    VertexLoadingConsumer consumer;
-    CountDownLatch m_countDownLatch;
+    private BlockingDeque<List<Long>> buffer;
+    private VertexLoadingConsumer consumer;
+    private Partition m_partition;
+    final int VERTEX_PACKAGE_SIZE = 1_000_000;
 
     public LDBCVertexLoader() {
     }
 
-    public LDBCVertexLoader(int numberOfVertices, ChunkLocalService p_chunkLocalService, ChunkService p_chunkService, short p_nodeID) {
+    public LDBCVertexLoader(ChunkLocalService p_chunkLocalService, ChunkService p_chunkService, Partition p_partition, short p_nodeID, HashMap<Long, Vertex> p_idToVertexMap) {
         super(p_chunkLocalService, p_chunkService, p_nodeID);
         this.m_chunkLocalService = p_chunkLocalService;
         this.m_chunkService = p_chunkService;
         buffer = new LinkedBlockingDeque<>(10_000_000);
-        this.m_countDownLatch = new CountDownLatch(numberOfVertices);
-        consumer = new VertexLoadingConsumer(buffer, m_countDownLatch, m_chunkLocalService, m_chunkService);
+        consumer = new VertexLoadingConsumer(buffer, m_chunkLocalService, m_chunkService, p_idToVertexMap);
+        m_partition = p_partition;
     }
 
+
     @Override
-    public VerticesTaskResponse readVerticesFile(Path p_filePath, Graph p_graph) {
+    public void readFile(Path p_filePath, Graph p_graph) {
         System.out.println("READING VERTICES");
-        long min = Integer.MAX_VALUE;
-        long max = Integer.MIN_VALUE;
         Thread t1 = new Thread(consumer);
         t1.start();
         try (final BufferedReader br = new BufferedReader(
@@ -50,15 +51,28 @@ public class LDBCVertexLoader extends FileLoader {
             String line = null;
             long vid = -1;
             int i = 0;
+            ArrayList<Long> batch = new ArrayList<>(VERTEX_PACKAGE_SIZE);
             while ((line = br.readLine()) != null) {
                 vid = Long.parseLong(line.split("\\s")[0]);
-                if (min == Integer.MAX_VALUE) {
-                    min = vid;
+
+                if (m_partition.getTo() < vid) {
+                    break;
                 }
-                buffer.add(vid);
-                i++;
+                if (m_partition.isBetween(vid)) {
+                    if (batch.size() == VERTEX_PACKAGE_SIZE) {
+                        buffer.put(batch);
+                        batch = new ArrayList<>(VERTEX_PACKAGE_SIZE);
+
+                    } else {
+                        batch.add(vid);
+                    }
+                    i++;
+
+                }
             }
-            max = vid;
+            if (batch.size() > 0) {
+                buffer.add(batch);
+            }
             System.out.println(String.format("Read %d vertices", i));
             t1.join();
         } catch (IOException e) {
@@ -66,13 +80,6 @@ public class LDBCVertexLoader extends FileLoader {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-
-        return new VerticesTaskResponse(p_graph.getMasterNodeID(), m_nodeID, min, max);
-    }
-
-    @Override
-    public void readFile(Path p_filePath, Graph p_graph) {
-
     }
 
 }

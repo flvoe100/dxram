@@ -3,11 +3,9 @@ package de.hhu.bsinfo.dxram.loading;
 import de.hhu.bsinfo.dxmem.data.AbstractChunk;
 import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.data.ChunkState;
+import de.hhu.bsinfo.dxram.chunk.ChunkLocalService;
 import de.hhu.bsinfo.dxram.chunk.ChunkService;
-import de.hhu.bsinfo.dxram.data.ElementAlreadyExistsException;
 import de.hhu.bsinfo.dxram.data.ElementNotFoundException;
-import de.hhu.bsinfo.dxram.engine.ServiceProvider;
-import de.hhu.bsinfo.dxram.nameservice.NameserviceService;
 import de.hhu.bsinfo.dxutils.serialization.ByteBufferImExporter;
 import de.hhu.bsinfo.dxutils.serialization.Exporter;
 import de.hhu.bsinfo.dxutils.serialization.Importer;
@@ -15,6 +13,7 @@ import de.hhu.bsinfo.dxutils.serialization.ObjectSizeUtil;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
@@ -24,116 +23,176 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
     private static final int LOCK_TIMEOUT = (int) TimeUnit.SECONDS.toMillis(1);
     private static final int LOOKUP_TIMEOUT = (int) TimeUnit.MILLISECONDS.toMillis(500);
 
-    private final DistributedLinkedByteList.MetaData metaData;
-    private final DistributedLinkedByteList.DataHolder<T> current;
-    private final DistributedLinkedByteList.DataHolder<T> previous;
+    private final MetaData metaData;
+    private final DataHolder current;
+    private final DataHolder previous;
 
     private final ChunkService chunkService;
     private ByteBufferImExporter exporter;
     private ByteBuffer byteBuffer;
     private Supplier<T> m_supplier;
 
-    //in bytes (128kb)
-    private static final int MAXIMUM_STORAGE_SIZE = 128000 - Long.BYTES - Integer.BYTES;
+    //in bytes
+    private static final int MAXIMUM_STORAGE_SIZE = 128000;
+
+    public DistributedLinkedByteList() {
+        metaData = new MetaData();
+        current = new DataHolder();
+        previous = new DataHolder();
+        chunkService = null;
+    }
 
     public DistributedLinkedByteList(final MetaData metaData, final ChunkService chunkService, final Supplier<T> p_supplier) {
         this.metaData = metaData;
         this.chunkService = chunkService;
         m_supplier = p_supplier;
-        current = new DistributedLinkedByteList.DataHolder(p_supplier);
-        previous = new DistributedLinkedByteList.DataHolder(p_supplier);
+        current = new DataHolder();
+        previous = new DataHolder();
     }
 
-    public void add(T[] values, short nodeId) {
+    public void add(short nodeId, T... values) {
         syncedWrite(() -> {
-            int valuesSize = Util.sizeOfObjectArray(values);
-            System.out.println("valuesSize = " + valuesSize);
-
-            if (MAXIMUM_STORAGE_SIZE - current.sizeOfByteValues() > valuesSize) {
-                fillUpCurrentBuffer(values, nodeId);
-
-            } else {
-                //create new linked entry
-                current.reset();
-                //TODO: need to differ if the valuesize ist just bigger MAXIMUM CAP or MAXIMUM CAP - current.size
-                int restBufferSize = MAXIMUM_STORAGE_SIZE - current.sizeOfByteValues();
-                int numberOfObjects = restBufferSize / m_supplier.get().sizeofObject();
-
-                //first fillUp
-
-                byteBuffer = ByteBuffer.allocate(valuesSize);
-                exporter = new ByteBufferImExporter(byteBuffer);
-                for (int i = 0; i < numberOfObjects; i++) {
-                    //put entries in current values
-                    T val = values[i];
-                    exporter.exportObject(val);
-                }
-                byte[] bytesOfBuffer = byteBuffer.array();
-                byte[] combined = new byte[current.values.length + bytesOfBuffer.length];
-                System.arraycopy(current.values, 0, combined, 0, current.values.length);
-                System.arraycopy(bytesOfBuffer, 0, combined, current.values.length, bytesOfBuffer.length);
-
-                current.values = combined;
-                current.m_count += values.length;
-
-                chunkService.put().put(current);
-
-                //Then create new with the rest
-                byteBuffer = ByteBuffer.allocate(valuesSize);
-                exporter = new ByteBufferImExporter(byteBuffer);
-                for (int i = 0; i < values.length; i++) {
-                    //put entries in current values
-                    T val = values[i];
-                    exporter.exportObject(val);
-                }
-                current.values = byteBuffer.array();
-                current.m_count = values.length;
-
-                current.setNext(ChunkID.INVALID_ID);
-                chunkService.create().create(nodeId, current);
-
-                if (metaData.head == ChunkID.INVALID_ID) {
-                    metaData.head = current.getID();
-                    metaData.tail = metaData.head;
-                } else {
-                    previous.reset();
-                    previous.setID(metaData.tail);
-                    chunkService.get().get(previous);
-                    previous.setNext(current.getID());
-                    chunkService.put().put(previous);
-                    metaData.tail = current.getID();
-                }
-
-                chunkService.put().put(current);
-                metaData.listSize += 1;
-            }
-            metaData.numberOfObjects += values.length;
-
+            add2(values, nodeId);
             return null;
         });
     }
 
-    private void fillUpCurrentBuffer(T[] values, final short nodeId) {
+    private void add2(T[] values, short nodeId) {
+        if (current.m_count == 0) {
+            fillUpCurrentListEntry2(values, nodeId);
+        } else {
+            createNewListEntry2(nodeId, values);
+        }
+        metaData.numberOfObjects += values.length;
+
+    }
+
+    private void add(T[] values, short nodeId) {
+        if (MAXIMUM_STORAGE_SIZE - (current.m_count * getGenericSize()) >= Util.sizeOfObjectArray(values)) {
+            fillUpCurrentListEntry(values, nodeId);
+        } else {
+            //create new linked entry
+            int restBufferSize = MAXIMUM_STORAGE_SIZE - (current.m_count * m_supplier.get().sizeofObject());
+            int fillUpSize = 0;
+            if (restBufferSize != 0) {
+                //first fillUp
+                fillUpSize = restBufferSize / m_supplier.get().sizeofObject();
+                fillUpCurrentListEntry(Arrays.copyOf(values, fillUpSize), nodeId);
+            }
+            int restValuesSize = values.length - fillUpSize;
+            int dataHoldersToCreate = (int) Math.ceil((restValuesSize * getGenericSize()) / (double) MAXIMUM_STORAGE_SIZE);
+            int numberOfObjects;
+            for (int i = 0; i < dataHoldersToCreate; i++) {
+                current.reset();
+                numberOfObjects = Math.min(restValuesSize, getMaximumSavingObject());
+
+                int startIndex = fillUpSize + (i * getMaximumSavingObject());
+                int endIndex = startIndex + numberOfObjects;
+
+                T[] restObjects = Arrays.copyOfRange(values, startIndex, endIndex);
+
+                createNewListEntry(nodeId, restObjects);
+                restValuesSize -= restObjects.length;
+            }
+        }
+        metaData.numberOfObjects += values.length;
+    }
+
+    private void createNewListEntry(short nodeId, T... listEntryEntries) {
+        int valuesSize = Util.sizeOfObjectArray(listEntryEntries);
+        //Then create new with the rest
+        byteBuffer = ByteBuffer.allocate(valuesSize);
+        exporter = new ByteBufferImExporter(byteBuffer);
+        for (T val : listEntryEntries) {
+            //put entries in current values
+            exporter.exportObject(val);
+        }
+        current.reset();
+        boolean success = current.add(byteBuffer.array());
+        if (!success) {
+            System.err.println("Adding values to current linked item failed!");
+        }
+        current.m_count += listEntryEntries.length;
+        current.setNext(ChunkID.INVALID_ID);
+        int created = chunkService.create().create(nodeId, current);
+        if (created != 1) {
+            System.err.println("Creating a new linked list entry failed");
+        }
+        if (metaData.head == ChunkID.INVALID_ID) {
+            metaData.head = current.getID();
+            metaData.tail = metaData.head;
+        } else {
+            previous.reset();
+            previous.setID(metaData.tail);
+            chunkService.get().get(previous);
+            previous.setNext(current.getID());
+            chunkService.put().put(previous);
+            metaData.tail = current.getID();
+        }
+
+        success = chunkService.put().put(current);
+        if (!success) {
+            System.err.println("putting a new linked list entry failed");
+        }
+        metaData.listSize += 1;
+    }
+
+    private void createNewListEntry2(short nodeId, T... listEntryEntries) {
+        int valuesSize = Util.sizeOfObjectArray(listEntryEntries);
+        //Then create new with the rest
+        byteBuffer = ByteBuffer.allocate(valuesSize);
+        exporter = new ByteBufferImExporter(byteBuffer);
+        for (T val : listEntryEntries) {
+            //put entries in current values
+            exporter.exportObject(val);
+        }
+        current.reset();
+        current.add2(byteBuffer.array());
+
+        current.m_count += listEntryEntries.length;
+        current.setNext(ChunkID.INVALID_ID);
+        int created = chunkService.create().create(nodeId, current);
+        if (created != 1) {
+            System.err.println("Creating a new linked list entry failed");
+        }
+        if (metaData.head == ChunkID.INVALID_ID) {
+            metaData.head = current.getID();
+            metaData.tail = metaData.head;
+        } else {
+            previous.reset();
+            previous.setID(metaData.tail);
+            chunkService.get().get(previous);
+            previous.setNext(current.getID());
+            chunkService.put().put(previous);
+            metaData.tail = current.getID();
+        }
+
+        boolean success = chunkService.put().put(current);
+        if (!success) {
+            System.err.println("putting a new linked list entry failed");
+        }
+        metaData.listSize += 1;
+    }
+
+    private void fillUpCurrentListEntry(T[] values, final short nodeId) {
         int valuesSize = Util.sizeOfObjectArray(values);
         byteBuffer = ByteBuffer.allocate(valuesSize);
         exporter = new ByteBufferImExporter(byteBuffer);
-        for (int i = 0; i < values.length; i++) {
+        for (T val : values) {
             //put entries in current values
-            T val = values[i];
             exporter.exportObject(val);
         }
-        byte[] bytesOfBuffer = byteBuffer.array();
-        byte[] combined = new byte[current.values.length + bytesOfBuffer.length];
-        System.arraycopy(current.values, 0, combined, 0, current.values.length);
-        System.arraycopy(bytesOfBuffer, 0, combined, current.values.length, bytesOfBuffer.length);
-
-        current.values = combined;
+        boolean success = current.add(byteBuffer.array());
+        if (!success) {
+            System.err.println("Adding values to current linked item failed!");
+        }
         current.m_count += values.length;
 
         if (current.getID() == ChunkID.INVALID_ID) {
-            chunkService.create().create(nodeId, current);
-        } else {
-            chunkService.resize().resize(current);
+            int created = chunkService.create().create(nodeId, current);
+            if (created != 1) {
+                System.err.println("Creating a new linked list entry failed");
+            }
         }
 
         if (metaData.head == ChunkID.INVALID_ID) {
@@ -142,8 +201,50 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
             metaData.listSize += 1;
         }
 
-        chunkService.put().put(current);
+        success = chunkService.put().put(current);
+        if (!success) {
+            System.err.println("Putting a entry failed");
+        }
+    }
 
+    private void fillUpCurrentListEntry2(T[] values, final short nodeId) {
+        int valuesSize = Util.sizeOfObjectArray(values);
+        byteBuffer = ByteBuffer.allocate(valuesSize);
+        exporter = new ByteBufferImExporter(byteBuffer);
+        for (T val : values) {
+            //put entries in current values
+            exporter.exportObject(val);
+        }
+        current.add2(byteBuffer.array());
+
+        current.m_count += values.length;
+
+        if (current.getID() == ChunkID.INVALID_ID) {
+            int created = chunkService.create().create(nodeId, current);
+            if (created != 1) {
+                System.err.println("Creating a new linked list entry failed");
+            }
+        }
+
+        if (metaData.head == ChunkID.INVALID_ID) {
+            metaData.head = current.getID();
+            metaData.tail = metaData.head;
+            metaData.listSize += 1;
+        }
+
+        boolean success = chunkService.put().put(current);
+        if (!success) {
+            System.err.println("Putting a entry failed");
+        }
+    }
+
+    private int getGenericSize() {
+        return m_supplier.get().sizeofObject();
+    }
+
+    private int getMaximumSavingObject() {
+        int genericSize = getGenericSize();
+        return MAXIMUM_STORAGE_SIZE / genericSize;
     }
 
     public List<T> getAll() {
@@ -157,9 +258,8 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
                 current.reset();
                 current.setID(nextId);
                 chunkService.get().get(current);
-                exporter = new ByteBufferImExporter(ByteBuffer.wrap(current.values));
-
-                for (int i = 0; i < metaData.numberOfObjects; i++) {
+                exporter = new ByteBufferImExporter(ByteBuffer.wrap(current.m_values));
+                for (int i = 0; i < current.m_count; i++) {
                     val = m_supplier.get();
                     exporter.importObject(val);
                     list.add(val);
@@ -237,23 +337,32 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
         }
     }
 
+    public long getMetaDataID() {
+        return metaData.getID();
+    }
 
     /**
      * Retrieves an existing distributed linked list using the specified name.
      */
-    public static <T extends AbstractChunk> DistributedLinkedByteList<T> get(final String name, final ServiceProvider serviceProvider, final Supplier<T> valueSupplier) {
-        NameserviceService nameService = serviceProvider.getService(NameserviceService.class);
-        ChunkService chunkService = serviceProvider.getService(ChunkService.class);
-
-        long chunkId = nameService.getChunkID(name, LOOKUP_TIMEOUT);
-        if (chunkId == ChunkID.INVALID_ID) {
-            throw new ElementNotFoundException(String.format("Chunk with nameservice id %s not found", name));
+    public static <T extends AbstractChunk> DistributedLinkedByteList<T> get(final long p_metaDataID, final ChunkService chunkService, final Supplier<T> valueSupplier) {
+        if (p_metaDataID == ChunkID.INVALID_ID) {
+            throw new ElementNotFoundException(String.format("Chunk has invalid ChunkID"));
         }
 
-        MetaData metaData = new MetaData(chunkId);
+        MetaData metaData = new MetaData(p_metaDataID);
         if (!chunkService.get().get(metaData)) {
-            throw new ElementNotFoundException(String.format("Chunk wit id %08X not found", chunkId));
+            throw new ElementNotFoundException(String.format("Chunk wit id %08X not found", p_metaDataID));
         }
+        return new DistributedLinkedByteList<>(metaData, chunkService, valueSupplier);
+    }
+
+    /**
+     * Creates a new distributed linked list using the specified name if it doesn't exist yet.
+     */
+    public static <T extends AbstractChunk> DistributedLinkedByteList<T> create(final long metaDataID, final ChunkService chunkService, final Supplier<T> valueSupplier) {
+        MetaData metaData = new MetaData();
+        metaData.setID(metaDataID);
+        chunkService.put().put(metaData);
 
         return new DistributedLinkedByteList<>(metaData, chunkService, valueSupplier);
     }
@@ -261,18 +370,16 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
     /**
      * Creates a new distributed linked list using the specified name if it doesn't exist yet.
      */
-    public static <T extends AbstractChunk> DistributedLinkedByteList<T> create(final String name, final ServiceProvider serviceProvider, final Supplier<T> valueSupplier) {
-        NameserviceService nameService = serviceProvider.getService(NameserviceService.class);
-        ChunkService chunkService = serviceProvider.getService(ChunkService.class);
-
-        if (nameService.getChunkID(name, LOOKUP_TIMEOUT) != ChunkID.INVALID_ID) {
-            throw new ElementAlreadyExistsException(String.format("Chunk with nameservice id %s is already registered", name));
-        }
-
+    public static <T extends AbstractChunk> DistributedLinkedByteList<T> create(final ChunkLocalService chunkLocalService, final ChunkService chunkService, final Supplier<T> valueSupplier) {
         MetaData metaData = new MetaData();
-        chunkService.createLocal().create(metaData);
-        chunkService.put().put(metaData);
-        nameService.register(metaData, name);
+        int created = chunkLocalService.createLocal().create(metaData);
+        if (created != 1) {
+            System.err.println("Creating id for metadata of distributed linked list failed!");
+        }
+        boolean success = chunkService.put().put(metaData);
+        if (!success) {
+            System.err.println("Failed to put metadata");
+        }
         return new DistributedLinkedByteList<>(metaData, chunkService, valueSupplier);
     }
 
@@ -312,52 +419,76 @@ public class DistributedLinkedByteList<T extends AbstractChunk> {
         }
     }
 
-    private static final class DataHolder<T extends AbstractChunk> extends AbstractChunk {
+    private static final class DataHolder extends AbstractChunk {
 
-        private byte[] values;
+        private byte[] m_values;
         private int m_count;
+        private int m_putPointer;
         private long next = ChunkID.INVALID_ID;
 
-        public DataHolder(final Supplier<T> supplier) {
-            T tmp = supplier.get();
-            values = new byte[0];
+        private DataHolder() {
+            m_values = new byte[MAXIMUM_STORAGE_SIZE];
             m_count = 0;
+            m_putPointer = 0;
         }
 
+        public boolean add(byte[] values) {
+            if (m_values.length - m_putPointer >= values.length) {
+                for (int i = 0; i < values.length; i++) {
+                    m_values[m_putPointer] = values[i];
+                    m_putPointer++;
+                }
+                return true;
+
+            }
+            return false;
+
+        }
+
+        public void add2(byte[] values) {
+            m_values = values;
+
+
+        }
 
         @Override
         public void exportObject(Exporter exporter) {
-            exporter.writeByteArray(values);
+            exporter.writeByteArray(m_values);
             exporter.writeLong(next);
             exporter.writeInt(m_count);
+            exporter.writeInt(m_putPointer);
         }
 
         @Override
         public void importObject(Importer importer) {
-            values = importer.readByteArray(values);
+            m_values = importer.readByteArray(m_values);
             next = importer.readLong(next);
             m_count = importer.readInt(m_count);
+            m_putPointer = importer.readInt(m_putPointer);
         }
 
         @Override
         public int sizeofObject() {
-            return ObjectSizeUtil.sizeofByteArray(values) + Long.BYTES + Integer.BYTES;
+            return ObjectSizeUtil.sizeofByteArray(m_values) + Long.BYTES + 2 * Integer.BYTES;
         }
 
-        public int sizeOfByteValues() {
-            return ObjectSizeUtil.sizeofByteArray(values);
+        int sizeOfByteValues() {
+            return ObjectSizeUtil.sizeofByteArray(m_values);
         }
 
-        public long getNext() {
+        long getNext() {
             return next;
         }
 
-        public void setNext(long next) {
+        private void setNext(long next) {
             this.next = next;
         }
 
-        public void reset() {
+        private void reset() {
             next = ChunkID.INVALID_ID;
+            m_count = 0;
+            m_putPointer = 0;
+            m_values = new byte[MAXIMUM_STORAGE_SIZE];
             setID(ChunkID.INVALID_ID);
             setState(ChunkState.UNDEFINED);
         }

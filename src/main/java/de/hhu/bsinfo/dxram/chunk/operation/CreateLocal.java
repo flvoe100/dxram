@@ -46,11 +46,6 @@ public class CreateLocal extends Operation {
         StatisticsManager.get().registerOperation(ChunkLocalService.class, SOP_CREATE_DS_ERROR);
     }
 
-    public void writeRingBuffer() {
-        m_chunk.getMemory().getM_context().getLIDStore().getM_spareLIDStore().writeRingBufferSpareLocalIDs();
-    }
-
-
     /**
      * Constructor
      *

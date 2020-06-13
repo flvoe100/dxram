@@ -4,10 +4,6 @@ import de.hhu.bsinfo.dxmem.data.AbstractChunk;
 
 public class Util {
 
-    public static boolean isInInterval(long start, long end, long toCheck) {
-        return toCheck >= start && toCheck <= end;
-    }
-
     public static int sizeOfObjectArray(Object[] objects) {
         if (objects.length == 0) return 0;
 
@@ -17,5 +13,4 @@ public class Util {
         }
         return -1;
     }
-
 }

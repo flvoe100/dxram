@@ -24,6 +24,4 @@ public abstract class FileLoader {
 
     public abstract void readFile(Path p_filePath, Graph p_graph);
 
-    public abstract VerticesTaskResponse readVerticesFile(Path p_filePath, Graph p_graph);
-
 }

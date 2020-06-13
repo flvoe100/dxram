@@ -23,6 +23,7 @@ public class ChunkComponentConfig extends ModuleConfig {
     private static final StorageUnit KEY_VALUE_STORE_SIZE_MIN = new StorageUnit(1L, StorageUnit.MB);
     private static final StorageUnit KEY_VALUE_STORE_SIZE_MAX = new StorageUnit((long) Math.pow(2, Address.WIDTH_BITS),
             StorageUnit.BYTE);
+    private static final int DEFAULT_SPARE_LID_STORE_SIZE = 5_000_000;
 
     /**
      * Amount of main memory to use for the key value store
@@ -53,6 +54,9 @@ public class ChunkComponentConfig extends ModuleConfig {
     @Expose
     private boolean m_chunkStorageEnabled = true;
 
+    @Expose
+    private int m_spareLIDStoreSize = DEFAULT_SPARE_LID_STORE_SIZE;
+
     /**
      * Constructor
      */
@@ -71,6 +75,11 @@ public class ChunkComponentConfig extends ModuleConfig {
         if (m_keyValueStoreSize.getBytes() > KEY_VALUE_STORE_SIZE_MAX.getBytes()) {
             LOGGER.error("Max m_keyValueStoreSize: %s", KEY_VALUE_STORE_SIZE_MAX);
 
+            return false;
+        }
+
+        if(m_spareLIDStoreSize < 1) {
+            LOGGER.error("Spare LID store size must be at least 1.");
             return false;
         }
 
